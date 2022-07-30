@@ -9,7 +9,7 @@ from collections import deque
 from enum import Enum
 import time
 import socket
-import json
+import json     
 
 # ~~~~~============== CONFIGURATION  ==============~~~~~
 # Replace "REPLACEME" with your team name!
@@ -52,8 +52,11 @@ def main():
     # of the VALE market.
     vale_bid_price, vale_ask_price = None, None
     bond_bid_price, bond_ask_price = None, None
+    valbz_bid_price, valbz_ask_price = None, None
     vale_last_print_time = time.time()
     bond_last_print_time = time.time()
+    valbz_last_print_time = time.time()
+    threshold = 0
 
     # Here is the main loop of the program. It will continue to read and
     # process messages in a loop until a "close" message is received. You
@@ -86,12 +89,26 @@ def main():
         elif message["type"] == "fill":
             print(message)
         elif message["type"] == "book":
+            if message["symbol"] == "VALBZ":
+                valbz_bid_price = best_price("buy")
+                valbz_ask_price = best_price("sell")
+
+                now = time.time()
+
+                if now > valbz_last_print_time + 1:
+                    valbz_last_print_time = now
+                    print(
+                        {
+                            "valbz_bid_price": vale_bid_price,
+                            "valbz_ask_price": vale_ask_price,
+                        }
+                    )
+
             if message["symbol"] == "VALE":
 
                 def best_price(side):
                     if message[side]:
                         return message[side][0][0]
-
                 vale_bid_price = best_price("buy")
                 vale_ask_price = best_price("sell")
 
@@ -105,6 +122,16 @@ def main():
                             "vale_ask_price": vale_ask_price,
                         }
                     )
+                if (valbz_ask_price is not None and threshold < 3):
+                    if (valbz_ask_price < vale_ask_price):
+                        print("Buying vale for" + vale_ask_price + "At a potential profit of" + abs(valbz_ask_price - valbz_bid_price))
+                        exchange.send_add_message(order_id=1, symbol="VALE", dir=Dir.BUY, price=vale_ask_price, size=1)
+                        threshold += 1
+                if (valbz_bid_price is not None and threshold > 0):
+                    elif (valbz_bid_price < vale_bid_price):
+                        print("Selling vale for" + vale_bid_price + "At a potential profit of" + abs(valbz_bid_price - vale_bid_price))
+                        exchange.send_add_message(order_id=1, symbol="VALE", dir=Dir.SELL, price=vale_bid_price, size=1)
+                        threshold -= 1
             if message["symbol"] == "BOND":
 
                     def best_price(side):
@@ -124,10 +151,11 @@ def main():
                                 "bond_ask_price": vale_ask_price,
                             }
                         )
-                        if (threshold):
-                            if (bond_ask_price < 1000):
-                                exchange.send_add_message(order_id=1, symbol="BOND", dir=Dir.BUY, price=bond_ask_price, size=1)
+                        if (bond_ask_price < 1000):
+                            print("Buying bond for" + bond_ask_price)
+                            exchange.send_add_message(order_id=1, symbol="BOND", dir=Dir.BUY, price=bond_ask_price, size=1)
                         elif (bond_bid_price > 1000):
+                            print("Sold bond for" + bond_ask_price)
                             exchange.send_add_message(order_id=1, symbol="BOND", dir=Dir.SELL, price=bond_bid_price, size=1)
 
 
