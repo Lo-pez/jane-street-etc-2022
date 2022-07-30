@@ -9,6 +9,7 @@ from collections import deque
 from enum import Enum
 import time
 import socket
+import random
 import json     
 
 # ~~~~~============== CONFIGURATION  ==============~~~~~
@@ -33,13 +34,16 @@ m_avg = {"BOND" : [],
 "WFC":  [],
 "XLF":  []}
 
-def ema (price, com=0.5, key):
+def ema (price, key, com=0.6):
     if len(m_avg[key]) == 0:
         new = price
         m_avg[key] = [new]
     else:
-        new = com * price + (1 - com) * m_avg['VALBZ'][-1]
+        new = com * price + (1 - com) * m_avg[key][-1]
         m_avg[key].append(new)
+        
+    return m_avg[key][-1]
+
 
 def main():
     args = parse_arguments()
@@ -79,7 +83,7 @@ def main():
     vale_last_print_time = time.time()
     bond_last_print_time = time.time()
     valbz_last_print_time = time.time()
-    threshold = 0
+    threshold = 50
     m_avg["VALBZ"].append(4000)
 
     # Here is the main loop of the program. It will continue to read and
@@ -118,50 +122,123 @@ def main():
             portfolio[message["symbol"]] += dir * message["size"]
             print(message)
         elif message["type"] == "book":
-            if message["symbol"] == "VALBZ":
-                valbz_bid_price = best_price("buy")
-                valbz_ask_price = best_price("sell")
-                m_avg["VALBZ"].append(valbz_ask_price)
-
-                now = time.time()
-
-                if now > valbz_last_print_time + 1:
-                    valbz_last_print_time = now
-                    print(
-                        {
-                            "valbz_bid_price": vale_bid_price,
-                            "valbz_ask_price": vale_ask_price,
-                        }
-                    )
-            print((valbz_ask_price), (sum(m_avg["VALBZ"])/len(m_avg["VALBZ"])))
-            if (valbz_ask_price is not None and portfolio["VALBZ"] < 10 and portfolio["VALBZ"] >= 0):
-                if (sum(m_avg["VALBZ"])/len(m_avg["VALBZ"]) > valbz_ask_price):
-                    print("Buying valbz")
-                    exchange.send_add_message(order_id=3, symbol="VALBZ", dir=Dir.BUY, price=valbz_ask_price, size=1)
-                    portfolio["VALBZ"] += 1
-                else:
-                    exchange.send_add_message(order_id=4, symbol="VALBZ", dir=Dir.SELL, price=valbz_bid_price, size=1)
-                    portfolio["VALBZ"] -= 1
-
-
-            if message["symbol"] == "VALE":
-
+            if message["symbol"] == "XLF": 
                 def best_price(side):
                     if message[side]:
                         return message[side][0][0]
-                vale_bid_price = best_price("buy")
-                vale_ask_price = best_price("sell")
+                xlf_bid_price = best_price("buy")
+                xlf_ask_price = best_price("sell")
+                
+                if xlf_ask_price is None:
+                    continue 
+                
+                ema(xlf_ask_price, "XLF")
+                
+                if portfolio["XLF"] < threshold and (3 * (1000) + 2 * portfolio['GS'] + 3 * portfolio['MS'] + 2 * portfolio['WFC'] - 15) > 10 * xlf_ask_price:
+                    exchange.send_add_message(order_id=random.randint(40,100), symbol="XLF", dir=Dir.BUY, price=xlf_ask_price, size=10)
+                    portfolio["XLF"] += 1
+                elif portfolio["XLF"] > (-1 * threshold) and (3 * (1000) + 2 * portfolio['GS'] + 3 * portfolio['MS'] + 2 * portfolio['WFC'] + 15) < 10 * xlf_ask_price:
+                    exchange.send_add_message(order_id=random.randint(40,100), symbol="XLF", dir=Dir.SELL, price=xlf_ask_price, size=1)
+                    portfolio["XLF"] -= 1
+                
+            if message["symbol"] == "MS": 
+                def best_price(side):
+                    if message[side]:
+                        return message[side][0][0]
+                ms_bid_price = best_price("buy")
+                ms_ask_price = best_price("sell")
+                if ms_ask_price is None:
+                    continue 
+                
+                ema(ms_ask_price, "MS")
+                
+                if portfolio["MS"] < threshold and (3 * (1000) + 2 * portfolio['GS'] + 3 * ms_ask_price + 2 * portfolio['WFC'] - 50) > 10 * portfolio['XLF']:
+                    exchange.send_add_message(order_id=random.randint(40,100), symbol="MS", dir=Dir.BUY, price=ms_ask_price, size=1)
+                    portfolio["MS"] += 1
+                elif portfolio["MS"] > (-1 * threshold) and (3 * (1000) + 2 * portfolio['GS'] + 3 * ms_ask_price + 2 * portfolio['WFC'] + 50) < 10 * portfolio['XLF']:
+                    exchange.send_add_message(order_id=random.randint(40,100), symbol="MS", dir=Dir.SELL, price=ms_ask_price, size=1)
+                    portfolio["MS"] -= 1
+                
+            if message["symbol"] == "GS": 
+                def best_price(side):
+                    if message[side]:
+                        return message[side][0][0]
+                gs_bid_price = best_price("buy")
+                gs_ask_price = best_price("sell")
+                if gs_ask_price is None:
+                    continue 
+                
+                ema(gs_ask_price, "GS")
+                if portfolio["GS"] < threshold and (3 * (1000) + 3 * portfolio['MS'] + 2 * gs_ask_price + 2 * portfolio['WFC'] - 50) > 10 * portfolio['XLF']:
+                    exchange.send_add_message(order_id=random.randint(100,132), symbol="GS", dir=Dir.BUY, price=gs_ask_price, size=1)
+                    portfolio["GS"] += 1
+                elif portfolio["GS"] > (-1 * threshold) and (3 * (1000) + 3 * portfolio['MS'] + 2 * gs_ask_price + 2 * portfolio['WFC'] + 50) < 10 * portfolio['XLF']:
+                    exchange.send_add_message(order_id=random.randint(100,132), symbol="GS", dir=Dir.SELL, price=gs_ask_price, size=1)
+                    portfolio["GS"] -= 1
+                
+                
+            if message["symbol"] == "WFC": 
+                def best_price(side):
+                    if message[side]:
+                        return message[side][0][0]
+                wfc_bid_price = best_price("buy")
+                wfc_ask_price = best_price("sell")
+                if wfc_ask_price is None:
+                    continue 
+                
+                ema(wfc_ask_price, "WFC")
+                if portfolio["GS"] < threshold and (3 * (1000) + 3 * portfolio['MS'] + 2 * wfc_ask_price + 2 * portfolio['GS'] - 50) > 10 * portfolio['XLF']:
+                    exchange.send_add_message(order_id=random.randint(132,164), symbol="WFC", dir=Dir.BUY, price=wfc_ask_price, size=1)
+                    portfolio["WFC"] += 1
+                elif portfolio["GS"] > (-1 * threshold) and (3 * (1000) + 3 * portfolio['MS'] + 2 * wfc_ask_price + 2 * portfolio['GS'] + 50) < 10 * portfolio['XLF']:
+                    exchange.send_add_message(order_id=random.randint(132,164), symbol="WFC", dir=Dir.SELL, price=wfc_ask_price, size=1)
+                    portfolio["WFC"] -= 1
+                
 
-                now = time.time()
+            # if message["symbol"] == "VALBZ":
+            #     valbz_bid_price = best_price("buy")
+            #     valbz_ask_price = best_price("sell")
+            #     m_avg["VALBZ"].append(valbz_ask_price)
 
-                if now > vale_last_print_time + 1:
-                    vale_last_print_time = now
-                    print(
-                        {
-                            "vale_bid_price": vale_bid_price,
-                            "vale_ask_price": vale_ask_price,
-                        }
-                    )
+            #     now = time.time()
+
+            #     if now > valbz_last_print_time + 1:
+            #         valbz_last_print_time = now
+            #         print(
+            #             {
+            #                 "valbz_bid_price": vale_bid_price,
+            #                 "valbz_ask_price": vale_ask_price,
+            #             }
+            #         )
+            # if (valbz_ask_price is not None and portfolio["VALBZ"] < 10 and portfolio["VALBZ"] >= 0):
+            #     print((valbz_ask_price), (sum(m_avg["VALBZ"])/len(m_avg["VALBZ"])))
+            #     if (sum(m_avg["VALBZ"])/len(m_avg["VALBZ"]) > valbz_ask_price):
+            #         print("Buying valbz")
+            #         exchange.send_add_message(order_id=3, symbol="VALBZ", dir=Dir.BUY, price=valbz_ask_price, size=1)
+            #         portfolio["VALBZ"] += 1
+            #     else:
+            #         exchange.send_add_message(order_id=4, symbol="VALBZ", dir=Dir.SELL, price=valbz_bid_price, size=1)
+            #         portfolio["VALBZ"] -= 1
+
+
+            # if message["symbol"] == "VALE":
+
+            #     def best_price(side):
+            #         if message[side]:
+            #             return message[side][0][0]
+            #     vale_bid_price = best_price("buy")
+            #     vale_ask_price = best_price("sell")
+
+            #     now = time.time()
+
+            #     if now > vale_last_print_time + 1:
+            #         vale_last_print_time = now
+            #         print(
+            #             {
+            #                 "vale_bid_price": vale_bid_price,
+            #                 "vale_ask_price": vale_ask_price,
+            #             }
+            #         )
                 # if (valbz_ask_price is not None and threshold < 3):
                 #     if (valbz_ask_price < vale_ask_price):
                 #         exchange.send_add_message(order_id=1, symbol="VALE", dir=Dir.BUY, price=vale_ask_price, size=1)
