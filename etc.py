@@ -33,7 +33,7 @@ m_avg = {"BOND" : [],
 "WFC":  [],
 "XLF":  []}
 
-def ema (price, key, com=0.5):
+def ema (price, key, com=0.8):
     if len(m_avg[key]) == 0:
         new = price
         m_avg[key] = [new]
@@ -135,14 +135,20 @@ def main():
                             "valbz_ask_price": vale_ask_price,
                         }
                     )
-            if (valbz_ask_price is not None and portfolio["VALBZ"] < 10 and portfolio["VALBZ"] >= 0):
+
+            if portfolio["VALE"] == 10:
+                exchange.send_convert_message(order_id=5, symbol="VALE", dir=Dir.BUY, size=5)
+                portfolio["VALE"] -= 5
+                portfolio["VALBZ"] += 5
+                
+            if (valbz_ask_price is not None and portfolio["VALE"] < 10 and portfolio["VALE"] >= 0):
                 if (ema(valbz_ask_price, "VALBZ") > valbz_ask_price):
-                    print("Buying valbz")
-                    exchange.send_add_message(order_id=3, symbol="VALBZ", dir=Dir.BUY, price=valbz_ask_price, size=1)
-                    portfolio["VALBZ"] += 1
+                    print("Buying vale")
+                    exchange.send_add_message(order_id=3, symbol="VALE", dir=Dir.BUY, price=valbz_ask_price, size=1)
+                    portfolio["VALE"] += 1
                 else:
-                    exchange.send_add_message(order_id=4, symbol="VALBZ", dir=Dir.SELL, price=valbz_bid_price, size=1)
-                    portfolio["VALBZ"] -= 1
+                    exchange.send_add_message(order_id=4, symbol="VALE", dir=Dir.SELL, price=valbz_bid_price, size=1)
+                    portfolio["VALE"] -= 1
 
 
             if message["symbol"] == "VALE":
@@ -163,6 +169,20 @@ def main():
                             "vale_ask_price": vale_ask_price,
                         }
                     )
+
+                if portfolio["VALE"] == 10:
+                    exchange.send_convert_message(order_id=8, symbol="VALE", dir=Dir.BUY, size=5)
+                    portfolio["VALE"] -= 5
+                    portfolio["VALBZ"] += 5
+
+                if (valbz_ask_price is not None and portfolio["VALBZ"] < 10 and portfolio["VALBZ"] >= 0):
+                    if (ema(valbz_ask_price, "VALBZ") > valbz_ask_price):
+                        print("Buying valbz")
+                        exchange.send_add_message(order_id=6, symbol="VALBZ", dir=Dir.BUY, price=valbz_ask_price, size=1)
+                        portfolio["VALBZ"] += 1
+                    else:
+                        exchange.send_add_message(order_id=7, symbol="VALBZ", dir=Dir.SELL, price=valbz_bid_price, size=1)
+                        portfolio["VALBZ"] -= 1
                 # if (valbz_ask_price is not None and threshold < 3):
                 #     if (valbz_ask_price < vale_ask_price):
                 #         exchange.send_add_message(order_id=1, symbol="VALE", dir=Dir.BUY, price=vale_ask_price, size=1)
@@ -190,10 +210,12 @@ def main():
                                 "bond_ask_price": vale_ask_price,
                             }
                         )
-                        if bond_ask_price < 1000 and portfolio['BOND'] < 30:
-                            exchange.send_add_message(order_id=1, symbol="BOND", dir=Dir.BUY, price=bond_ask_price, size=1)
-                        elif bond_bid_price > 1000:
-                            exchange.send_add_message(order_id=2, symbol="BOND", dir=Dir.SELL, price=bond_bid_price, size=1)
+                        if (bond_ask_price is not None):
+                            if bond_ask_price < 1000 and portfolio['BOND'] < 30:
+                                exchange.send_add_message(order_id=1, symbol="BOND", dir=Dir.BUY, price=bond_ask_price, size=1)
+                        if (bond_bid_price is not None):
+                            if bond_bid_price > 1000:
+                                exchange.send_add_message(order_id=2, symbol="BOND", dir=Dir.SELL, price=bond_bid_price, size=1)
 
 
 # ~~~~~============== PROVIDED CODE ==============~~~~~
