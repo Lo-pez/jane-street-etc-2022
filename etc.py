@@ -10,7 +10,6 @@ from enum import Enum
 import time
 import socket
 import json
-import 
 
 # ~~~~~============== CONFIGURATION  ==============~~~~~
 # Replace "REPLACEME" with your team name!
@@ -39,6 +38,9 @@ def main():
     # have already bought/sold symbols and have non-zero positions.
     hello_message = exchange.read_message()
     print("First message from exchange:", hello_message)
+
+    exchange.send_add_message(order_id=1, symbol="BOND", dir=Dir.BUY, price=999, size=10)
+    exchange.send_add_message(order_id=1, symbol="BOND", dir=Dir.SELL, price=1001, size=10)
 
     # Send an order for BOND at a good price, but it is low enough that it is
     # unlikely it will be traded against. Maybe there is a better price to
@@ -122,8 +124,9 @@ def main():
                                 "bond_ask_price": vale_ask_price,
                             }
                         )
-                        if (bond_ask_price < 1000):
-                            exchange.send_add_message(order_id=1, symbol="BOND", dir=Dir.BUY, price=bond_ask_price, size=1)
+                        if (threshold):
+                            if (bond_ask_price < 1000):
+                                exchange.send_add_message(order_id=1, symbol="BOND", dir=Dir.BUY, price=bond_ask_price, size=1)
                         elif (bond_bid_price > 1000):
                             exchange.send_add_message(order_id=1, symbol="BOND", dir=Dir.SELL, price=bond_bid_price, size=1)
 
