@@ -32,6 +32,14 @@ def main():
 
     exchange = ExchangeConnection(args=args)
 
+    portfolio = {"BOND" : 0,
+        "VALBZ":    0,
+        "VALE": 0,
+        "GS":   0,
+        "MS":   0,
+        "WFC":  0,
+        "XLF":  0}
+
     # Store and print the "hello" message received from the exchange. This
     # contains useful information about your positions. Normally you start with
     # all positions at zero, but if you reconnect during a round, you might
@@ -87,51 +95,54 @@ def main():
         elif message["type"] == "reject":
             print(message)
         elif message["type"] == "fill":
+            if message["dir"] == "BUY":
+                dir = 1
+            else:
+                dir = -1
+            portfolio[message["symbol"]] += dir * message["size"]
             print(message)
         elif message["type"] == "book":
-            if message["symbol"] == "VALBZ":
-                valbz_bid_price = best_price("buy")
-                valbz_ask_price = best_price("sell")
+            # if message["symbol"] == "VALBZ":
+            #     valbz_bid_price = best_price("buy")
+            #     valbz_ask_price = best_price("sell")
 
-                now = time.time()
+            #     now = time.time()
 
-                if now > valbz_last_print_time + 1:
-                    valbz_last_print_time = now
-                    print(
-                        {
-                            "valbz_bid_price": vale_bid_price,
-                            "valbz_ask_price": vale_ask_price,
-                        }
-                    )
+            #     if now > valbz_last_print_time + 1:
+            #         valbz_last_print_time = now
+            #         print(
+            #             {
+            #                 "valbz_bid_price": vale_bid_price,
+            #                 "valbz_ask_price": vale_ask_price,
+            #             }
+            #         )
 
-            if message["symbol"] == "VALE":
+            # if message["symbol"] == "VALE":
 
-                def best_price(side):
-                    if message[side]:
-                        return message[side][0][0]
-                vale_bid_price = best_price("buy")
-                vale_ask_price = best_price("sell")
+            #     def best_price(side):
+            #         if message[side]:
+            #             return message[side][0][0]
+            #     vale_bid_price = best_price("buy")
+            #     vale_ask_price = best_price("sell")
 
-                now = time.time()
+            #     now = time.time()
 
-                if now > vale_last_print_time + 1:
-                    vale_last_print_time = now
-                    print(
-                        {
-                            "vale_bid_price": vale_bid_price,
-                            "vale_ask_price": vale_ask_price,
-                        }
-                    )
-                if (valbz_ask_price is not None and threshold < 3):
-                    if (valbz_ask_price < vale_ask_price):
-                        print("Buying vale for" + vale_ask_price + "At a potential profit of")
-                        exchange.send_add_message(order_id=1, symbol="VALE", dir=Dir.BUY, price=vale_ask_price, size=1)
-                        threshold += 1
-                if (valbz_bid_price is not None and threshold > 0):
-                    if (valbz_bid_price < vale_bid_price):
-                        print("Selling vale for" + vale_bid_price + "At a potential profit of")
-                        exchange.send_add_message(order_id=1, symbol="VALE", dir=Dir.SELL, price=vale_bid_price, size=1)
-                        threshold -= 1
+            #     if now > vale_last_print_time + 1:
+            #         vale_last_print_time = now
+            #         print(
+            #             {
+            #                 "vale_bid_price": vale_bid_price,
+            #                 "vale_ask_price": vale_ask_price,
+            #             }
+            #         )
+            #     if (valbz_ask_price is not None and threshold < 3):
+            #         if (valbz_ask_price < vale_ask_price):
+            #             exchange.send_add_message(order_id=1, symbol="VALE", dir=Dir.BUY, price=vale_ask_price, size=1)
+            #             threshold += 1
+            #     if (valbz_bid_price is not None and threshold > 0):
+            #         if (valbz_bid_price < vale_bid_price):
+            #             exchange.send_add_message(order_id=1, symbol="VALE", dir=Dir.SELL, price=vale_bid_price, size=1)
+            #             threshold -= 1
             if message["symbol"] == "BOND":
 
                     def best_price(side):
@@ -151,11 +162,9 @@ def main():
                                 "bond_ask_price": vale_ask_price,
                             }
                         )
-                        if (bond_ask_price < 1000):
-                            print("Buying bond for" + bond_ask_price)
+                        if bond_ask_price < 1000 and portfolio['BOND'] < 30:
                             exchange.send_add_message(order_id=1, symbol="BOND", dir=Dir.BUY, price=bond_ask_price, size=1)
-                        elif (bond_bid_price > 1000):
-                            print("Sold bond for" + bond_ask_price)
+                        elif bond_bid_price > 1000:
                             exchange.send_add_message(order_id=1, symbol="BOND", dir=Dir.SELL, price=bond_bid_price, size=1)
 
 
