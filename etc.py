@@ -33,13 +33,15 @@ m_avg = {"BOND" : [],
 "WFC":  [],
 "XLF":  []}
 
-def ema (price, com=0.5, key):
+def ema (price, key, com=0.5):
     if len(m_avg[key]) == 0:
         new = price
         m_avg[key] = [new]
     else:
         new = com * price + (1 - com) * m_avg['VALBZ'][-1]
         m_avg[key].append(new)
+
+    return m_avg[key][-1]
 
 def main():
     args = parse_arguments()
@@ -133,9 +135,8 @@ def main():
                             "valbz_ask_price": vale_ask_price,
                         }
                     )
-            print((valbz_ask_price), (sum(m_avg["VALBZ"])/len(m_avg["VALBZ"])))
             if (valbz_ask_price is not None and portfolio["VALBZ"] < 10 and portfolio["VALBZ"] >= 0):
-                if (sum(m_avg["VALBZ"])/len(m_avg["VALBZ"]) > valbz_ask_price):
+                if (ema(valbz_ask_price, "VALBZ") > valbz_ask_price):
                     print("Buying valbz")
                     exchange.send_add_message(order_id=3, symbol="VALBZ", dir=Dir.BUY, price=valbz_ask_price, size=1)
                     portfolio["VALBZ"] += 1
