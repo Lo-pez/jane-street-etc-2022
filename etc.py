@@ -14,13 +14,6 @@ import json
 # ~~~~~============== CONFIGURATION  ==============~~~~~
 # Replace "REPLACEME" with your team name!
 team_name = "DarkRoast"
-portfolio = {"BOND" : 0,
-"VALBZ":	0,
-"VALE":	0,
-"GS":	0,
-"MS":	0,
-"WFC":	0,
-"XLF":	0}
 
 # ~~~~~============== MAIN LOOP ==============~~~~~
 
@@ -32,12 +25,35 @@ portfolio = {"BOND" : 0,
 # price, and it prints the current prices for VALE every second. The sample
 # code is intended to be a working example, but it needs some improvement
 # before it will start making good trades!
+m_avg = {"BOND" : [],
+"VALBZ":    [],
+"VALE": [],
+"GS":   [],
+"MS":   [],
+"WFC":  [],
+"XLF":  []}
 
+def ema (price, com=0.5, key):
+    if len(m_avg[key]) == 0:
+        new = price
+        m_avg[key] = [new]
+    else:
+        new = com * price + (1 - com) * m_avg['VALBZ'][-1]
+        m_avg[key].append(new)
 
 def main():
     args = parse_arguments()
 
     exchange = ExchangeConnection(args=args)
+
+    portfolio = {"BOND" : 0,
+        "VALBZ":    0,
+        "VALE": 0,
+        "GS":   0,
+        "MS":   0,
+        "WFC":  0,
+        "XLF":  0}
+
 
     # Store and print the "hello" message received from the exchange. This
     # contains useful information about your positions. Normally you start with
@@ -59,8 +75,12 @@ def main():
     # of the VALE market.
     vale_bid_price, vale_ask_price = None, None
     bond_bid_price, bond_ask_price = None, None
+    valbz_bid_price, valbz_ask_price = None, None
     vale_last_print_time = time.time()
     bond_last_print_time = time.time()
+    valbz_last_print_time = time.time()
+    threshold = 0
+    m_avg["VALBZ"].append(4000)
 
     # Here is the main loop of the program. It will continue to read and
     # process messages in a loop until a "close" message is received. You
@@ -91,21 +111,46 @@ def main():
         elif message["type"] == "reject":
             print(message)
         elif message["type"] == "fill":
-            print(message)
-
             if message["dir"] == "BUY":
                 dir = 1
             else:
                 dir = -1
             portfolio[message["symbol"]] += dir * message["size"]
-
+            print(message)
         elif message["type"] == "book":
+            if message["symbol"] == "VALBZ":
+                valbz_bid_price = best_price("buy")
+                valbz_ask_price = best_price("sell")
+                m_avg["VALBZ"].append(valbz_ask_price)
+
+                now = time.time()
+
+                if now > valbz_last_print_time + 1:
+                    valbz_last_print_time = now
+                    print(
+                        {
+                            "valbz_bid_price": vale_bid_price,
+                            "valbz_ask_price": vale_ask_price,
+                        }
+                    )
+
+                if valbz_ask_price > vale_ask_price:
+                    exchange.send_add_message(order_id=20, symbol="VALE", dir="BUY", size=1)
+                    portfolio["VALE"] += 1
+                    exchange.send_add_message(order_id=21, symbol="VALBZ", dir="SELL", size=1)
+                    portfolio["VALBZ"] -= 1
+
+                else:
+                    exchange.send_add_message(order_id=20, symbol="VALE", dir="SELL", size=1)
+                    portfolio["VALE"] -= 1
+                    exchange.send_add_message(order_id=21, symbol="VALBZ", dir="BUY", size=1)
+                    portfolio["VALBZ"] += 1
+
             if message["symbol"] == "VALE":
 
                 def best_price(side):
                     if message[side]:
                         return message[side][0][0]
-
                 vale_bid_price = best_price("buy")
                 vale_ask_price = best_price("sell")
 
@@ -119,6 +164,21 @@ def main():
                             "vale_ask_price": vale_ask_price,
                         }
                     )
+
+
+                if valbz_ask_price > vale_ask_price:
+                    exchange.send_add_message(order_id=20, symbol="VALE", dir="BUY", size=1)
+                    portfolio["VALE"] += 1
+                    exchange.send_add_message(order_id=21, symbol="VALBZ", dir="SELL", size=1)
+                    portfolio["VALBZ"] -= 1
+
+                else:
+                    exchange.send_add_message(order_id=20, symbol="VALE", dir="SELL", size=1)
+                    portfolio["VALE"] -= 1
+                    exchange.send_add_message(order_id=21, symbol="VALBZ", dir="BUY", size=1)
+                    portfolio["VALBZ"] += 1
+
+
             if message["symbol"] == "BOND":
 
                     def best_price(side):
@@ -138,12 +198,30 @@ def main():
                                 "bond_ask_price": vale_ask_price,
                             }
                         )
-
-                        if bond_ask_price < 1000 and portfolio['BOND'] < 50:
-                                exchange.send_add_message(order_id=1, symbol="BOND", dir=Dir.BUY, price=bond_ask_price, size=1)
+                        if bond_ask_price < 1000 and portfolio['BOND'] < 30:
+                            exchange.send_add_message(order_id=1, symbol="BOND", dir=Dir.BUY, price=bond_ask_price, size=1)
                         elif bond_bid_price > 1000:
-                            exchange.send_add_message(order_id=1, symbol="BOND", dir=Dir.SELL, price=bond_bid_price, size=1)
+                            exchange.send_add_message(order_id=2, symbol="BOND", dir=Dir.SELL, price=bond_bid_price, size=1)
 
+            if portfolio["VALE"] == 10:
+                exchange.send_convert_message(order_id=5, symbol="VALE", dir=Dir.BUY, size=5)
+                portfolio["VALE"] -= 5
+                portfolio["VALBZ"] += 5
+
+            elif portfolio["VALE"] == -10:
+                exchange.send_convert_message(order_id=5, symbol="VALBZ", dir=Dir.BUY, size=5)
+                portfolio["VALE"] += 5
+                portfolio["VALBZ"] -= 5
+
+            elif portfolio["VALBZ"] == 10:
+                exchange.send_convert_message(order_id=5, symbol="VALBZ", dir=Dir.BUY, size=10)
+                portfolio["VALBZ"] -= 10
+                portfolio["VALE"] += 10
+
+            elif portfolio["VALBZ"] == -10:
+                exchange.send_convert_message(order_id=5, symbol="VALE", dir=Dir.BUY, size=10)
+                portfolio["VALBZ"] += 10
+                portfolio["VALE"] -= 10
 
 # ~~~~~============== PROVIDED CODE ==============~~~~~
 
