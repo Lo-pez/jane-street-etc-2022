@@ -124,12 +124,12 @@ def main():
                     )
                 if (valbz_ask_price is not None and threshold < 3):
                     if (valbz_ask_price < vale_ask_price):
-                        print("Buying vale for" + vale_ask_price + "At a potential profit of" + abs(valbz_ask_price - valbz_bid_price))
+                        print("Buying vale for" + vale_ask_price + "At a potential profit of")
                         exchange.send_add_message(order_id=1, symbol="VALE", dir=Dir.BUY, price=vale_ask_price, size=1)
                         threshold += 1
                 if (valbz_bid_price is not None and threshold > 0):
-                    elif (valbz_bid_price < vale_bid_price):
-                        print("Selling vale for" + vale_bid_price + "At a potential profit of" + abs(valbz_bid_price - vale_bid_price))
+                    if (valbz_bid_price < vale_bid_price):
+                        print("Selling vale for" + vale_bid_price + "At a potential profit of")
                         exchange.send_add_message(order_id=1, symbol="VALE", dir=Dir.SELL, price=vale_bid_price, size=1)
                         threshold -= 1
             if message["symbol"] == "BOND":
