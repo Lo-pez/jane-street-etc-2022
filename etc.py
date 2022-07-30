@@ -25,7 +25,21 @@ team_name = "DarkRoast"
 # price, and it prints the current prices for VALE every second. The sample
 # code is intended to be a working example, but it needs some improvement
 # before it will start making good trades!
+m_avg = {"BOND" : [],
+"VALBZ":    [],
+"VALE": [],
+"GS":   [],
+"MS":   [],
+"WFC":  [],
+"XLF":  []}
 
+def ema (price, com=0.5, key):
+    if len(m_avg[key]) == 0:
+        new = price
+        m_avg[key] = [new]
+    else:
+        new = com * price + (1 - com) * m_avg['VALBZ'][-1]
+        m_avg[key].append(new)
 
 def main():
     args = parse_arguments()
@@ -39,6 +53,7 @@ def main():
         "MS":   0,
         "WFC":  0,
         "XLF":  0}
+
 
     # Store and print the "hello" message received from the exchange. This
     # contains useful information about your positions. Normally you start with
@@ -65,6 +80,7 @@ def main():
     bond_last_print_time = time.time()
     valbz_last_print_time = time.time()
     threshold = 0
+    m_avg["VALBZ"].append(4000)
 
     # Here is the main loop of the program. It will continue to read and
     # process messages in a loop until a "close" message is received. You
@@ -102,47 +118,58 @@ def main():
             portfolio[message["symbol"]] += dir * message["size"]
             print(message)
         elif message["type"] == "book":
-            # if message["symbol"] == "VALBZ":
-            #     valbz_bid_price = best_price("buy")
-            #     valbz_ask_price = best_price("sell")
+            if message["symbol"] == "VALBZ":
+                valbz_bid_price = best_price("buy")
+                valbz_ask_price = best_price("sell")
+                m_avg["VALBZ"].append(valbz_ask_price)
 
-            #     now = time.time()
+                now = time.time()
 
-            #     if now > valbz_last_print_time + 1:
-            #         valbz_last_print_time = now
-            #         print(
-            #             {
-            #                 "valbz_bid_price": vale_bid_price,
-            #                 "valbz_ask_price": vale_ask_price,
-            #             }
-            #         )
+                if now > valbz_last_print_time + 1:
+                    valbz_last_print_time = now
+                    print(
+                        {
+                            "valbz_bid_price": vale_bid_price,
+                            "valbz_ask_price": vale_ask_price,
+                        }
+                    )
+            print((valbz_ask_price), (sum(m_avg["VALBZ"])/len(m_avg["VALBZ"])))
+            if (valbz_ask_price is not None and portfolio["VALBZ"] < 10 and portfolio["VALBZ"] >= 0):
+                if (sum(m_avg["VALBZ"])/len(m_avg["VALBZ"]) > valbz_ask_price):
+                    print("Buying valbz")
+                    exchange.send_add_message(order_id=3, symbol="VALBZ", dir=Dir.BUY, price=valbz_ask_price, size=1)
+                    portfolio["VALBZ"] += 1
+                else:
+                    exchange.send_add_message(order_id=4, symbol="VALBZ", dir=Dir.SELL, price=valbz_bid_price, size=1)
+                    portfolio["VALBZ"] -= 1
 
-            # if message["symbol"] == "VALE":
 
-            #     def best_price(side):
-            #         if message[side]:
-            #             return message[side][0][0]
-            #     vale_bid_price = best_price("buy")
-            #     vale_ask_price = best_price("sell")
+            if message["symbol"] == "VALE":
 
-            #     now = time.time()
+                def best_price(side):
+                    if message[side]:
+                        return message[side][0][0]
+                vale_bid_price = best_price("buy")
+                vale_ask_price = best_price("sell")
 
-            #     if now > vale_last_print_time + 1:
-            #         vale_last_print_time = now
-            #         print(
-            #             {
-            #                 "vale_bid_price": vale_bid_price,
-            #                 "vale_ask_price": vale_ask_price,
-            #             }
-            #         )
-            #     if (valbz_ask_price is not None and threshold < 3):
-            #         if (valbz_ask_price < vale_ask_price):
-            #             exchange.send_add_message(order_id=1, symbol="VALE", dir=Dir.BUY, price=vale_ask_price, size=1)
-            #             threshold += 1
-            #     if (valbz_bid_price is not None and threshold > 0):
-            #         if (valbz_bid_price < vale_bid_price):
-            #             exchange.send_add_message(order_id=1, symbol="VALE", dir=Dir.SELL, price=vale_bid_price, size=1)
-            #             threshold -= 1
+                now = time.time()
+
+                if now > vale_last_print_time + 1:
+                    vale_last_print_time = now
+                    print(
+                        {
+                            "vale_bid_price": vale_bid_price,
+                            "vale_ask_price": vale_ask_price,
+                        }
+                    )
+                # if (valbz_ask_price is not None and threshold < 3):
+                #     if (valbz_ask_price < vale_ask_price):
+                #         exchange.send_add_message(order_id=1, symbol="VALE", dir=Dir.BUY, price=vale_ask_price, size=1)
+                #         threshold += 1
+                # if (valbz_bid_price is not None and threshold > 0):
+                #     if (valbz_bid_price < vale_bid_price):
+                #         exchange.send_add_message(order_id=1, symbol="VALE", dir=Dir.SELL, price=vale_bid_price, size=1)
+                #         threshold -= 1
             if message["symbol"] == "BOND":
 
                     def best_price(side):
@@ -165,7 +192,7 @@ def main():
                         if bond_ask_price < 1000 and portfolio['BOND'] < 30:
                             exchange.send_add_message(order_id=1, symbol="BOND", dir=Dir.BUY, price=bond_ask_price, size=1)
                         elif bond_bid_price > 1000:
-                            exchange.send_add_message(order_id=1, symbol="BOND", dir=Dir.SELL, price=bond_bid_price, size=1)
+                            exchange.send_add_message(order_id=2, symbol="BOND", dir=Dir.SELL, price=bond_bid_price, size=1)
 
 
 # ~~~~~============== PROVIDED CODE ==============~~~~~
